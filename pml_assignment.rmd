@@ -1,0 +1,98 @@
+## Practical Machine Learning Project 
+Background
+C, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement ? a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+### Download data
+
+```{r echo=FALSE, error=FALSE, warning=FALSE, fig.height=4}
+library(RCurl)
+#nURL<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+#binURL<-getBinaryURL(nURL, ssl.verifypeer = FALSE)
+#fURL<-"../data/pml-training.csv"
+#con<-file(fURL, open="wb")
+#writeBin(binURL, con)
+#
+#tURL<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+#binURL<-getBinaryURL(tURL, ssl.verifypeer = FALSE)
+#fURL<-"../data/pml-testing.csv"
+#con<-file(fURL, open="wb")
+#writeBin(binURL, con)
+#This method of download downloads only 16 rows...changed to following method.
+#tURL<-"http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+#fURL<-"../data/pml-testing.csv"
+#download.file(tURL, destfile=fURL)
+```
+### read data
+
+```{r echo=FALSE, error=FALSE, warning=FALSE, fig.height=4}
+#options( StringsAsFactors=T) 
+pmln<-read.csv('../data/pml-training.csv')
+pmlt<-read.csv('../data/pml-testing.csv')
+names(pmln)
+dim(pmln)
+dim(pmlt)
+#table(pmln$classe)
+```
+### Create test data set and validate data set from the original data set
+
+```{r echo=FALSE, error=FALSE, warning=FALSE, fig.height=4}
+library(caret)
+set.seed(23232)
+nIndx<-createDataPartition(pmln$classe, p = 0.8, list = FALSE)
+pmlTrain<-pmln[nIndx, ]
+pmlValdt<-pmln[-nIndx, ]
+```
+### Preprocess to remove the NA predictors and almost zero variance predictors
+
+```{r echo=FALSE, error=FALSE, warning=FALSE, fig.height=4}
+pnlTrain<-pmlTrain[,-nearZeroVar(pmln)]
+pmlTrain<-pmlTrain[, -(1:7)]
+pmlTrain[ pmlTrain == '' | pmlTrain == 'NA'] <- NA
+naCols <-which(colSums(is.na(pmlTrain))!=0)
+pmlTrain<-pmlTrain[, -naCols]
+```
+### Try multiple models check accuracy
+
+```{r echo=FALSE, error=FALSE, warning=FALSE, fig.height=4}
+library(randomForest)
+#pcaModel <- train(pmlTrain$classe ~ .,method="rf",preProcess="pca",data=pmlTrain)
+#pcaPredict<-predict(pmlModel, pmlTrain)
+#pcavCM<-confusionMatrix(pmlPredict, pmlTrain$classe)
+#pcavCM
+pmlModel<-randomForest(classe ~.,data = pmlTrain,importance = TRUE)
+pmlPredict<-predict(pmlModel, pmlTrain)
+pmlvCM<-confusionMatrix(pmlPredict, pmlTrain$classe)
+pmlvCM
+```
+Got the best accuract (100%) from random forest modeling. The other model processings are commented out to save run time.  
+
+### cross validate accuracy against validate data set
+
+```{r echo=FALSE, error=FALSE, warning=FALSE, fig.height=4}
+pmlPredict<-predict(pmlModel, pmlValdt)
+pmlvCM<-confusionMatrix(pmlPredict, pmlValdt$classe)
+pmlvCM
+```
+### Predict against test data
+
+```{r echo=FALSE, error=FALSE, warning=FALSE, fig.height=4}
+pmlPredict<-predict(pmlModel, pmlt)
+pmlPredict
+```
+### Generate the project submission files
+```{r echo=FALSE, error=FALSE, warning=FALSE, fig.height=4}
+pmlPredict <- as.vector(pmlPredict)
+
+pml_write_files = function(x) {
+    n = length(x)
+    for (i in 1:n) {
+        filename = paste0("problem_id_", i, ".txt")
+        write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, 
+            col.names = FALSE)
+    }
+}
+
+pml_write_files(pmlPredict)
+
+```
+
+Thanks to : http://groupware.les.inf.puc-rio.br/har, I am able to get data related to this project. Also, I have used the file generation code from the instructor.
